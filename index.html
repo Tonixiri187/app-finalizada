@@ -316,7 +316,7 @@
                 </div>
 
                 <div class="flex gap-3 pt-4">
-                    <button type="submit" class="flex-1 text-white py-2 px-4 rounded-lg font-medium btn gradient-bg">
+                    <button type="submit" id="btnGuardar" class="flex-1 text-white py-2 px-4 rounded-lg font-medium btn gradient-bg">
                         Guardar Obra
                     </button>
                     <button type="button" id="btnCancelar" class="flex-1 bg-gray-500 text-white py-2 px-4 rounded-lg font-medium">
@@ -409,7 +409,8 @@
             { id: 'interruptor', nombre: 'Interruptor' },
             { id: 'conmutador', nombre: 'Conmutador' },
             { id: 'cruzamiento', nombre: 'Cruzamiento' },
-            { id: 'tc_punto_luz', nombre: 'TC Punto de Luz' },
+            { id: 'enchufes', nombre: 'Enchufes' },
+            { id: 'puntos_luz', nombre: 'Puntos de Luz' },
             { id: 'red_tv', nombre: 'Red TV' },
             { id: 'persiana', nombre: 'Persiana' },
             { id: 'exterior', nombre: 'Exterior' },
@@ -892,6 +893,12 @@
 
         function limpiarFormulario() {
             document.getElementById('formObra').reset();
+            // Restaurar botón guardar
+            const btnGuardar = document.getElementById('btnGuardar');
+            if (btnGuardar) {
+                btnGuardar.disabled = false;
+                btnGuardar.textContent = 'Guardar Obra';
+            }
         }
 
         function verDetalle(obraId) {
@@ -929,36 +936,67 @@
         function guardarObra(event) {
             event.preventDefault();
             
-            const obra = {
-                id: appState.editingObra ? appState.editingObra.id : generateId(),
-                nombre: document.getElementById('nombre').value,
-                cliente: document.getElementById('cliente').value,
-                direccion: document.getElementById('direccion').value,
-                estado: document.getElementById('estado').value,
-                presupuesto: parseFloat(document.getElementById('presupuesto').value) || 0,
-                fechaInicio: document.getElementById('fechaInicio').value,
-                fechaEstimadaFin: document.getElementById('fechaEstimadaFin').value,
-                descripcion: document.getElementById('descripcion').value,
-                fechaCreacion: appState.editingObra ? appState.editingObra.fechaCreacion : new Date().toISOString(),
-                materiales: appState.editingObra ? appState.editingObra.materiales : [],
-                horas: appState.editingObra ? appState.editingObra.horas : [],
-                fasesPendientes: appState.editingObra ? appState.editingObra.fasesPendientes : [...fasesComunes],
-                fotos: appState.editingObra ? appState.editingObra.fotos : [],
-                comentarios: appState.editingObra ? appState.editingObra.comentarios : [],
-                marcaMecanismo: appState.editingObra ? appState.editingObra.marcaMecanismo : '',
-                mecanismos: appState.editingObra ? appState.editingObra.mecanismos : []
-            };
-
-            if (appState.editingObra) {
-                const index = appState.obras.findIndex(o => o.id === appState.editingObra.id);
-                appState.obras[index] = obra;
-            } else {
-                appState.obras.push(obra);
+            // Validación mejorada
+            const nombre = document.getElementById('nombre').value.trim();
+            const cliente = document.getElementById('cliente').value.trim();
+            
+            if (!nombre) {
+                alert('El nombre de la obra es obligatorio');
+                document.getElementById('nombre').focus();
+                return false;
             }
+            
+            if (!cliente) {
+                alert('El cliente es obligatorio');
+                document.getElementById('cliente').focus();
+                return false;
+            }
+            
+            try {
+                const obra = {
+                    id: appState.editingObra ? appState.editingObra.id : generateId(),
+                    nombre: nombre,
+                    cliente: cliente,
+                    direccion: document.getElementById('direccion').value.trim(),
+                    estado: document.getElementById('estado').value,
+                    presupuesto: parseFloat(document.getElementById('presupuesto').value) || 0,
+                    fechaInicio: document.getElementById('fechaInicio').value,
+                    fechaEstimadaFin: document.getElementById('fechaEstimadaFin').value,
+                    descripcion: document.getElementById('descripcion').value.trim(),
+                    fechaCreacion: appState.editingObra ? appState.editingObra.fechaCreacion : new Date().toISOString(),
+                    materiales: appState.editingObra ? appState.editingObra.materiales || [] : [],
+                    horas: appState.editingObra ? appState.editingObra.horas || [] : [],
+                    fasesPendientes: appState.editingObra ? appState.editingObra.fasesPendientes || [...fasesComunes] : [...fasesComunes],
+                    fotos: appState.editingObra ? appState.editingObra.fotos || [] : [],
+                    comentarios: appState.editingObra ? appState.editingObra.comentarios || [] : [],
+                    marcaMecanismo: appState.editingObra ? appState.editingObra.marcaMecanismo || '' : '',
+                    mecanismos: appState.editingObra ? appState.editingObra.mecanismos || [] : []
+                };
 
-            saveData();
-            renderObras();
-            ocultarModal();
+                if (appState.editingObra) {
+                    // Editar obra existente
+                    const index = appState.obras.findIndex(o => o.id === appState.editingObra.id);
+                    if (index !== -1) {
+                        appState.obras[index] = obra;
+                    }
+                } else {
+                    // Nueva obra
+                    appState.obras.push(obra);
+                }
+
+                saveData();
+                renderObras();
+                ocultarModal();
+                
+                // Mostrar confirmación
+                alert(appState.editingObra ? 'Obra actualizada correctamente ✅' : 'Obra creada correctamente ✅');
+                
+            } catch (error) {
+                console.error('Error al guardar obra:', error);
+                alert('Error al guardar la obra. Inténtalo de nuevo.');
+            }
+            
+            return false;
         }
 
         // Funciones para materiales
@@ -1248,8 +1286,14 @@
                 document.getElementById('modalDetalle').classList.add('hidden');
             });
 
-            // Form submission
-            document.getElementById('formObra').addEventListener('submit', guardarObra);
+            // Form submission - Mejorado
+            const formObra = document.getElementById('formObra');
+            if (formObra) {
+                formObra.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    guardarObra(e);
+                });
+            }
 
             // Search
             document.getElementById('searchInput').addEventListener('input', (e) => {
